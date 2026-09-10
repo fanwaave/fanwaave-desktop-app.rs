@@ -59,7 +59,10 @@ impl DesktopConfig {
         let resolved = resolve_fanwaave_config(&fanwaave, &ambient, &argv_overrides)
             .map_err(|_| "Fanwaave configuration resolution failed".to_owned())?;
 
-        let api_base = match resolved.binding("api_base_url").map(|binding| binding.value()) {
+        let api_base = match resolved
+            .binding("api_base_url")
+            .map(|binding| binding.value())
+        {
             Some(ConfigValue::Url(value)) if !value.trim().is_empty() => value.clone(),
             Some(_) => return Err("Fanwaave api_base_url binding has the wrong type".to_owned()),
             None => return Err("Fanwaave api_base_url binding is unresolved".to_owned()),
@@ -94,10 +97,7 @@ mod tests {
     fn environment_overrides_domain_default() {
         let config = DesktopConfig::from_sources(
             vec!["fanwaave-desktop".into()],
-            EnvMap::from([(
-                "FANWAAVE_API_BASE".into(),
-                "https://ambient.example".into(),
-            )]),
+            EnvMap::from([("FANWAAVE_API_BASE".into(), "https://ambient.example".into())]),
             &contract_path(),
             DOMAIN_CONFIG,
         )
@@ -113,10 +113,7 @@ mod tests {
                 "fanwaave-desktop".into(),
                 "--api-base=https://argv.example".into(),
             ],
-            EnvMap::from([(
-                "FANWAAVE_API_BASE".into(),
-                "https://ambient.example".into(),
-            )]),
+            EnvMap::from([("FANWAAVE_API_BASE".into(), "https://ambient.example".into())]),
             &contract_path(),
             DOMAIN_CONFIG,
         )
