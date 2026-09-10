@@ -1,0 +1,53 @@
+name: fanwaave-desktop-config
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-consumer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact desktop source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test flags-2-env precedence and domain config
+        run: cargo test --all-targets
+      - name: Prove config tests did not rewrite authored inputs
+        run: git diff --exit-code -- .fanwaave-cfg.toml .cli-flags.toml .ores-mw.toml Cargo.toml src
+
+  tjsv-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact desktop source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check out reviewed Fanwaave config authorities
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: fanwaave/fanwaave-interfaces
+          ref: e27695091a5b8276543a6f435156a25043f297a9
+          path: target/fanwaave-interfaces
+          persist-credentials: false
+      - name: Admit independent TypeSpec and JSON Schema authorities with TJSV
+        uses: ORESoftware/typespec-json-schema-validator@4a5d049218adc2740d4cf78f612caf7f38f6f64c
+        with:
+          typespec: target/fanwaave-interfaces/contracts/fanwaave-config/fanwaave-config.tsp
+          schema: target/fanwaave-interfaces/contracts/fanwaave-config/fanwaave-config.schema.json
+          report: target/tjsv/fanwaave-config-report.json
+          output_dir: target/tjsv/fanwaave-config-generated
