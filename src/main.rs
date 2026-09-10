@@ -3,7 +3,12 @@
 use fanwaave_desktop_core::{app::DesktopApp, config::DesktopConfig};
 
 fn main() {
-    let cfg = DesktopConfig::from_env();
+    let cfg = match DesktopConfig::from_process() {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("Fanwaave desktop configuration error: {error}");
+            std::process::exit(2);
+        }
+    };
     DesktopApp::new(cfg).run();
 }
-

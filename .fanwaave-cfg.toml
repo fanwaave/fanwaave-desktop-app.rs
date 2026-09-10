@@ -1,0 +1,23 @@
+# Domain runtime configuration. Values that vary by deployment are named by
+# environment key; credentials belong in the environment/secret boundary only.
+version = 1
+mode = "client"
+strict = true
+
+[flags2env]
+contract = ".cli-flags.toml"
+require_audit = true
+precedence = "argv-over-env"
+
+[client]
+enabled = true
+api_base_url_binding = "api_base_url"
+
+[[env]]
+name = "api_base_url"
+key = "FANWAAVE_API_BASE"
+kind = "url"
+required = false
+secret = false
+default = "http://127.0.0.1:8080"
+description = "Fanwaave API base URL used by the native desktop client."
