@@ -1,0 +1,45 @@
+name: ores-dnd-reactive
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fanwaave-desktop-ores-dnd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  rust-reactive-dnd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
+      - name: Verify exact contributor head
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Run DnD controller and desktop tests
+        run: cargo test --all-targets
+      - name: Clippy desktop with shared DnD dependency
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Verify zed-pkg declares shared DnD edge
+        run: grep -Fq '"ORESoftware/ores-dnd" = "^0.1.0"' .zpkg.toml
+      - name: Verify tooling did not mutate tracked source
+        run: git diff --exit-code
