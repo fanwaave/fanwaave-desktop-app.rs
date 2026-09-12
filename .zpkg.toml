@@ -2,3 +2,5 @@ name = "fanwaave-desktop-app.rs"
 kind = "desktop-app"
 version = "0.1.0"
 
+[dependencies]
+"ORESoftware/ores-dnd" = "^0.1.0"
