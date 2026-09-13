@@ -18,6 +18,7 @@ path = "src/main.rs"
 [dependencies]
 fanwaave-lib-core = { git = "https://github.com/fanwaave/fanwaave-lib-core.git", rev = "b7b0c79bf6c5c71a5508c12f25503ad001a1265e" }
 flags2env = { git = "https://github.com/flags-2-env/flags-2-env.git", rev = "b708a041531a830bd49f030250836896096e7abd" }
+ores-dnd-core = { git = "https://github.com/ORESoftware/ores-dnd.git", rev = "0b96c5eac6cbb210e29249ce30509c792b7e8703" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
