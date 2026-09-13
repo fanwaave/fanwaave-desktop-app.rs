@@ -1,5 +1,8 @@
 use ores_dnd_core::{
-    reactive::{DndLocalReactiveBus, DndReactiveEvent, DndReactiveState},
+    reactive::{
+        guarded_next, local_event_subject, reactive_state_for, DndLifecycleGuard,
+        DndLocalEventSubject, DndReactiveEvent, DndReactiveState,
+    },
     DndEnvelope, DndError, DndLifecyclePhase, DndOperation,
 };
 
@@ -8,7 +11,8 @@ use ores_dnd_core::{
 /// side effect; consumers explicitly commit accepted drops through the normal
 /// application ports after lifecycle admission succeeds.
 pub struct DesktopDndController {
-    bus: DndLocalReactiveBus,
+    subject: DndLocalEventSubject,
+    guard: DndLifecycleGuard,
 }
 
 impl Default for DesktopDndController {
@@ -20,12 +24,19 @@ impl Default for DesktopDndController {
 impl DesktopDndController {
     pub fn new() -> Self {
         Self {
-            bus: DndLocalReactiveBus::new(),
+            subject: local_event_subject(),
+            guard: DndLifecycleGuard::default(),
         }
     }
 
+    fn emit(&mut self, event: DndReactiveEvent) -> Result<DndReactiveState, DndError> {
+        let state = reactive_state_for(&event);
+        guarded_next(&mut self.subject, &mut self.guard, event)?;
+        Ok(state)
+    }
+
     pub fn start(&mut self, envelope: DndEnvelope) -> Result<DndReactiveState, DndError> {
-        self.bus.emit(DndReactiveEvent::new(
+        self.emit(DndReactiveEvent::new(
             DndLifecyclePhase::DragStart,
             envelope,
             None,
@@ -38,7 +49,7 @@ impl DesktopDndController {
         envelope: DndEnvelope,
         target_id: impl Into<String>,
     ) -> Result<DndReactiveState, DndError> {
-        self.bus.emit(DndReactiveEvent::new(
+        self.emit(DndReactiveEvent::new(
             DndLifecyclePhase::DragEnter,
             envelope,
             None,
@@ -51,7 +62,7 @@ impl DesktopDndController {
         envelope: DndEnvelope,
         target_id: impl Into<String>,
     ) -> Result<DndReactiveState, DndError> {
-        self.bus.emit(DndReactiveEvent::new(
+        self.emit(DndReactiveEvent::new(
             DndLifecyclePhase::DragOver,
             envelope,
             None,
@@ -65,7 +76,7 @@ impl DesktopDndController {
         operation: DndOperation,
         target_id: impl Into<String>,
     ) -> Result<DndReactiveState, DndError> {
-        self.bus.emit(DndReactiveEvent::new(
+        self.emit(DndReactiveEvent::new(
             DndLifecyclePhase::Drop,
             envelope,
             Some(operation),
@@ -79,7 +90,7 @@ impl DesktopDndController {
         operation: Option<DndOperation>,
         target_id: Option<String>,
     ) -> Result<DndReactiveState, DndError> {
-        self.bus.emit(DndReactiveEvent::new(
+        self.emit(DndReactiveEvent::new(
             DndLifecyclePhase::DragEnd,
             envelope,
             operation,
