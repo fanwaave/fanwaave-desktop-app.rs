@@ -116,11 +116,7 @@ mod tests {
         assert!(controller.start(envelope("drag-1"))?.active);
         let hovered = controller.hover(envelope("drag-1"), "timeline")?;
         assert_eq!(hovered.target_id.as_deref(), Some("timeline"));
-        let dropped = controller.drop_on(
-            envelope("drag-1"),
-            DndOperation::Copy,
-            "timeline",
-        )?;
+        let dropped = controller.drop_on(envelope("drag-1"), DndOperation::Copy, "timeline")?;
         assert_eq!(dropped.operation, Some(DndOperation::Copy));
         let ended = controller.end(
             envelope("drag-1"),
