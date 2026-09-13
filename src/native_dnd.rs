@@ -20,7 +20,12 @@ impl FanwaaveNativeDnd {
             policy: DndDropPolicy::new(
                 target_id,
                 &[DndOperation::Copy, DndOperation::Move],
-                &[DndItemKind::Text, DndItemKind::Uri, DndItemKind::Json, DndItemKind::Bytes],
+                &[
+                    DndItemKind::Text,
+                    DndItemKind::Uri,
+                    DndItemKind::Json,
+                    DndItemKind::Bytes,
+                ],
             ),
         }
     }
@@ -101,12 +106,8 @@ mod tests {
 
     #[test]
     fn definitive_payload_is_rechecked_after_provisional_acceptance() {
-        let policy = DndDropPolicy::new(
-            "timeline",
-            &[DndOperation::Copy],
-            &[DndItemKind::Text],
-        )
-        .with_max_total_bytes(2);
+        let policy = DndDropPolicy::new("timeline", &[DndOperation::Copy], &[DndItemKind::Text])
+            .with_max_total_bytes(2);
         let mut dnd = FanwaaveNativeDnd::with_policy(policy);
         assert_eq!(
             dnd.external_enter(envelope("drag-2", ""), None).state,
