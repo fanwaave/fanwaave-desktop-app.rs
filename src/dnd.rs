@@ -1,15 +1,18 @@
+#![allow(clippy::needless_return)]
+
 use ores_dnd_core::{
+    commit_accepted_drop,
     reactive::{
         guarded_next, local_event_subject, reactive_state_for, DndLifecycleGuard,
         DndLocalEventSubject, DndReactiveEvent, DndReactiveState,
     },
-    DndEnvelope, DndError, DndLifecyclePhase, DndOperation,
+    DndDropResult, DndEnvelope, DndError, DndLifecyclePhase, DndOperation, DropCommitPorts,
 };
 
 /// Native Fanwaave desktop ownership boundary for the shared ORES DnD state
 /// machine. This controller intentionally performs no persistence or telemetry
-/// side effect; consumers explicitly commit accepted drops through the normal
-/// application ports after lifecycle admission succeeds.
+/// side effect until an accepted drop is committed through the shared ORES
+/// forms -> opto-sync -> telemetry port sequence.
 pub struct DesktopDndController {
     subject: DndLocalEventSubject,
     guard: DndLifecycleGuard,
@@ -97,12 +100,27 @@ impl DesktopDndController {
             target_id,
         )?)
     }
+
+    /// Commit an already-admitted drop through the shared ORES integration
+    /// ports. The shared core owns validation and the forms -> opto-sync ->
+    /// ores-otel ordering so native desktop adapters cannot silently diverge.
+    pub fn commit_accepted(
+        envelope: &DndEnvelope,
+        result: &DndDropResult,
+        ports: DropCommitPorts<'_>,
+    ) -> Result<(), DndError> {
+        return commit_accepted_drop(envelope, result, ports);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ores_dnd_core::{DndItem, DndItemKind, ORES_DND_PROTOCOL};
+    use ores_dnd_core::{
+        DndItem, DndItemKind, DndTelemetryEvent, OptoSyncPort, OresFormsPort, OresOtelPort,
+        ORES_DND_PROTOCOL,
+    };
+    use std::cell::RefCell;
 
     fn envelope(drag_id: &str) -> DndEnvelope {
         DndEnvelope {
@@ -118,6 +136,47 @@ mod tests {
             }],
             traceparent: None,
             form_id: None,
+        }
+    }
+
+    struct RecordingForms<'a> {
+        calls: &'a RefCell<Vec<&'static str>>,
+    }
+
+    impl OresFormsPort for RecordingForms<'_> {
+        fn apply_accepted_drop(
+            &self,
+            _envelope: &DndEnvelope,
+            _result: &DndDropResult,
+        ) -> Result<(), DndError> {
+            self.calls.borrow_mut().push("forms");
+            return Ok(());
+        }
+    }
+
+    struct RecordingSync<'a> {
+        calls: &'a RefCell<Vec<&'static str>>,
+    }
+
+    impl OptoSyncPort for RecordingSync<'_> {
+        fn persist_accepted_drop(
+            &self,
+            _envelope: &DndEnvelope,
+            _result: &DndDropResult,
+        ) -> Result<(), DndError> {
+            self.calls.borrow_mut().push("opto-sync");
+            return Ok(());
+        }
+    }
+
+    struct RecordingOtel<'a> {
+        calls: &'a RefCell<Vec<&'static str>>,
+    }
+
+    impl OresOtelPort for RecordingOtel<'_> {
+        fn emit_dnd_event(&self, _event: &DndTelemetryEvent) -> Result<(), DndError> {
+            self.calls.borrow_mut().push("ores-otel");
+            return Ok(());
         }
     }
 
@@ -151,5 +210,37 @@ mod tests {
             .drop_on(envelope("drag-2"), DndOperation::Link, "timeline")
             .is_err());
         Ok(())
+    }
+
+    #[test]
+    fn accepted_drop_uses_shared_ores_port_order() -> Result<(), DndError> {
+        let calls = RefCell::new(Vec::new());
+        let forms = RecordingForms { calls: &calls };
+        let opto_sync = RecordingSync { calls: &calls };
+        let otel = RecordingOtel { calls: &calls };
+        let envelope = envelope("drag-3");
+        let result = DndDropResult {
+            drag_id: "drag-3".to_owned(),
+            accepted: true,
+            operation: Some(DndOperation::Copy),
+            target_id: Some("timeline".to_owned()),
+            error_code: None,
+        };
+
+        DesktopDndController::commit_accepted(
+            &envelope,
+            &result,
+            DropCommitPorts {
+                otel: Some(&otel),
+                opto_sync: Some(&opto_sync),
+                forms: Some(&forms),
+            },
+        )?;
+
+        assert_eq!(
+            calls.borrow().as_slice(),
+            ["forms", "opto-sync", "ores-otel"]
+        );
+        return Ok(());
     }
 }
