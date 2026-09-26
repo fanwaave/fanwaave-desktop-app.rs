@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 use ores_dnd_core::{
     commit_accepted_drop,
     reactive::{
