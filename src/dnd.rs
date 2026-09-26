@@ -235,7 +235,10 @@ mod tests {
             },
         )?;
 
-        assert_eq!(*calls.borrow(), ["forms", "opto-sync", "ores-otel"]);
+        assert_eq!(
+            calls.borrow().as_slice(),
+            ["forms", "opto-sync", "ores-otel"]
+        );
         return Ok(());
     }
 }
