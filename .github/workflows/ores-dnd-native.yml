@@ -1,0 +1,45 @@
+name: ores-dnd-native
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fanwaave-native-dnd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  native-dnd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          persist-credentials: false
+      - name: Verify exact contributor head
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Test native bridge consumer
+        run: cargo test --all-targets
+      - name: Clippy native bridge consumer
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Verify immutable ores-dnd producer pin
+        run: grep -Fq 'rev = "0b96c5eac6cbb210e29249ce30509c792b7e8703"' Cargo.toml
+      - name: Verify tooling did not mutate tracked source
+        run: git diff --exit-code
