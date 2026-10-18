@@ -126,6 +126,6 @@ mod tests {
         let mut dnd = FanwaaveNativeDnd::new("timeline");
         dnd.external_enter(envelope("drag-3", ""), None);
         assert_eq!(dnd.leave().state, DndSessionState::Dragging);
-        assert_eq!(dnd.cancel().expect("cancel result").accepted, false);
+        assert!(!dnd.cancel().expect("cancel result").accepted);
     }
 }
