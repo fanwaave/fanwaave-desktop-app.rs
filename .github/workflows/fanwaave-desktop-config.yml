@@ -45,7 +45,7 @@ jobs:
           path: target/fanwaave-interfaces
           persist-credentials: false
       - name: Admit independent TypeSpec and JSON Schema authorities with TJSV
-        uses: ORESoftware/typespec-json-schema-validator@813d5f021e02574f529a9553b670719f8f10d02c
+        uses: ORESoftware/typespec-json-schema-validator@be8fa62e54d421ddbfcad8eedf0aaf94289b3ed7
         with:
           typespec: target/fanwaave-interfaces/contracts/fanwaave-config/fanwaave-config.tsp
           schema: target/fanwaave-interfaces/contracts/fanwaave-config/fanwaave-config.schema.json
