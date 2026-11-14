@@ -78,7 +78,10 @@ impl DesktopConfig {
             || parsed.query().is_some()
             || parsed.fragment().is_some()
         {
-            return Err("Fanwaave api_base_url must be an HTTP(S) URL without credentials or query data".to_owned());
+            return Err(
+                "Fanwaave api_base_url must be an HTTP(S) URL without credentials or query data"
+                    .to_owned(),
+            );
         }
         Ok(Self { api_base })
     }
