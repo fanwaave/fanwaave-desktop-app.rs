@@ -67,6 +67,22 @@ impl DesktopConfig {
             Some(_) => return Err("Fanwaave api_base_url binding has the wrong type".to_owned()),
             None => return Err("Fanwaave api_base_url binding is unresolved".to_owned()),
         };
+        // The configured API origin must not embed credentials or query
+        // tokens: the desktop diagnostic surface renders this endpoint.
+        let parsed = url::Url::parse(&api_base)
+            .map_err(|_| "Fanwaave api_base_url is not a valid URL".to_owned())?;
+        if !matches!(parsed.scheme(), "http" | "https")
+            || parsed.host_str().is_none()
+            || !parsed.username().is_empty()
+            || parsed.password().is_some()
+            || parsed.query().is_some()
+            || parsed.fragment().is_some()
+        {
+            return Err(
+                "Fanwaave api_base_url must be an HTTP(S) URL without credentials or query data"
+                    .to_owned(),
+            );
+        }
         Ok(Self { api_base })
     }
 }
@@ -120,6 +136,26 @@ mod tests {
         .expect("config resolves");
         assert_eq!(config.api_base, "https://argv.example");
         assert_eq!(std::env::var_os("FANWAAVE_API_BASE"), before);
+    }
+
+    #[test]
+    fn rejects_credentials_and_query_tokens_before_they_reach_ui() {
+        let cases = [
+            "https://operator:private@example.com",
+            "https://example.com?api_key=private",
+            "https://example.com/#secret",
+            "file:///tmp/secret",
+        ];
+        for value in cases {
+            let config = DesktopConfig::from_sources(
+                vec!["fanwaave-desktop".into(), format!("--api-base={value}")],
+                EnvMap::new(),
+                &contract_path(),
+                DOMAIN_CONFIG,
+            );
+            assert!(config.is_err(), "unsafe API base accepted");
+            assert!(!config.unwrap_err().contains("private"));
+        }
     }
 
     #[test]
